@@ -21,11 +21,11 @@ public class JedisStoreTest {
     @BeforeAll
     public static void setupDockerClient() {
         docker = DockerClientBuilder.getInstance().build();
+        docker.pullImageCmd("redis:alpine").exec(new PullImageResultCallback()).awaitSuccess();
     }
 
     @BeforeEach
     public void startRedis() {
-        docker.pullImageCmd("redis:alpine").exec(new PullImageResultCallback()).awaitSuccess();
         CreateContainerResponse containerResponse = docker.createContainerCmd("redis:alpine")
                 .exec();
         redisContainerId = containerResponse.getId();
