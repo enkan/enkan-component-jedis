@@ -2,7 +2,6 @@ package enkan.component.jedis;
 
 import enkan.component.ComponentLifecycle;
 import enkan.component.SystemComponent;
-import lombok.Setter;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -10,10 +9,8 @@ import redis.clients.jedis.JedisPoolConfig;
 public class JedisProvider extends SystemComponent<JedisProvider> {
     private JedisPool pool;
 
-    @Setter
     private String redisServerAddress;
 
-    @Setter
     private JedisPoolConfig poolConfig;
 
     public Jedis getClient() {
@@ -38,5 +35,13 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
                 }
             }
         };
+    }
+
+    public void setRedisServerAddress(String redisServerAddress) {
+        this.redisServerAddress = redisServerAddress;
+    }
+
+    public void setPoolConfig(JedisPoolConfig poolConfig) {
+        this.poolConfig = poolConfig;
     }
 }
