@@ -4,11 +4,13 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PullImageResultCallback;
+import enkan.middleware.session.KeyValueStore;
 import enkan.system.EnkanSystem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import redis.clients.jedis.JedisPoolConfig;
 
 import static enkan.util.BeanBuilder.builder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,8 +37,12 @@ public class JedisStoreTest {
                 .getNetworks()
                 .get("bridge")
                 .getIpAddress();
+
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setJmxEnabled(true);
         system = EnkanSystem.of("jedis", builder(new JedisProvider())
-                .set(JedisProvider::setRedisServerAddress, ipAddress)
+                .set(JedisProvider::setPoolConfig, poolConfig)
+                .set(JedisProvider::setHost, ipAddress)
                 .build());
         system.start();
     }
@@ -44,7 +50,7 @@ public class JedisStoreTest {
     @Test
     public void setAndGetAndDelete() {
         JedisProvider jedisProvider = system.getComponent("jedis");
-        JedisStore store = new JedisStore(jedisProvider);
+        KeyValueStore store = jedisProvider.createStore("redis");
 
         Prefecture tokyo = new Prefecture("13", "Tokyo");
         store.write("13", tokyo);

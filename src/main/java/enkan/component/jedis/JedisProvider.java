@@ -2,20 +2,16 @@ package enkan.component.jedis;
 
 import enkan.component.ComponentLifecycle;
 import enkan.component.SystemComponent;
-import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 public class JedisProvider extends SystemComponent<JedisProvider> {
     private JedisPool pool;
 
-    private String redisServerAddress;
+    private String host = "localhost";
+    private int port = 6379;
 
     private JedisPoolConfig poolConfig;
-
-    public Jedis getClient() {
-        return pool.getResource();
-    }
 
     @Override
     protected ComponentLifecycle<JedisProvider> lifecycle() {
@@ -25,7 +21,7 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
                 if (poolConfig == null) {
                     poolConfig = new JedisPoolConfig();
                 }
-                c.pool = new JedisPool(poolConfig, redisServerAddress);
+                c.pool = new JedisPool(poolConfig, host, port);
             }
 
             @Override
@@ -37,8 +33,16 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
         };
     }
 
-    public void setRedisServerAddress(String redisServerAddress) {
-        this.redisServerAddress = redisServerAddress;
+    public JedisStore createStore(String type) {
+        return new JedisStore(type, pool);
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 
     public void setPoolConfig(JedisPoolConfig poolConfig) {
