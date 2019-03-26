@@ -1,6 +1,7 @@
 package enkan.component.jedis;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public class Prefecture implements Serializable {
     private String code;
@@ -35,13 +36,13 @@ public class Prefecture implements Serializable {
         if (o == this) return true;
         if (!(o instanceof Prefecture)) return false;
         final Prefecture other = (Prefecture) o;
-        if (!other.canEqual((Object) this)) return false;
+        if (!other.canEqual(this)) return false;
         final Object this$code = this.getCode();
         final Object other$code = other.getCode();
-        if (this$code == null ? other$code != null : !this$code.equals(other$code)) return false;
+        if (!Objects.equals(this$code, other$code)) return false;
         final Object this$name = this.getName();
         final Object other$name = other.getName();
-        if (this$name == null ? other$name != null : !this$name.equals(other$name)) return false;
+        if (!Objects.equals(this$name, other$name)) return false;
         return true;
     }
 

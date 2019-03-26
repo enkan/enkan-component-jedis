@@ -5,6 +5,8 @@ import enkan.component.SystemComponent;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
+import static enkan.util.BeanBuilder.builder;
+
 public class JedisProvider extends SystemComponent<JedisProvider> {
     private JedisPool pool;
 
@@ -35,6 +37,12 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
 
     public JedisStore createStore(String type) {
         return new JedisStore(type, pool);
+    }
+
+    public JedisStore createStore(String type, int expiry) {
+        return builder(new JedisStore(type, pool))
+                .set(JedisStore::setExpiry, expiry)
+                .build();
     }
 
     public void setHost(String host) {

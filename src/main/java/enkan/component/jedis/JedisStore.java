@@ -19,6 +19,7 @@ public class JedisStore implements KeyValueStore {
     private final String type;
     private final JedisPool pool;
     private final ObjectMapper mapper;
+    private Integer expiry;
 
     protected JedisStore(String type, JedisPool pool) {
         this.type = type;
@@ -29,10 +30,14 @@ public class JedisStore implements KeyValueStore {
     @Override
     public Serializable read(String key) {
         try(Jedis jedis = pool.getResource()) {
-            List<byte[]> objs = jedis.mget(
-                    (type + ":" + key + ":class").getBytes(UTF_8),
-                    key.getBytes(UTF_8));
+            List<byte[]> objs = jedis.mget(classKey(key), objectKey(key));
+
             if (objs == null || objs.get(0) == null) return null;
+
+            if (expiry != null) {
+                jedis.expire(classKey(key), expiry);
+                jedis.expire(objectKey(key), expiry);
+            }
 
             Class<?> cls = tryReflection(() -> Class.forName(new String(objs.get(0), UTF_8)));
             return (Serializable) mapper.readValue(objs.get(1), cls);
@@ -45,8 +50,12 @@ public class JedisStore implements KeyValueStore {
     public String write(String key, Serializable value) {
         try(Jedis jedis = pool.getResource()) {
             jedis.mset(
-                    (type + ":" + key + ":class").getBytes(UTF_8), value.getClass().getName().getBytes(UTF_8),
-                    key.getBytes(UTF_8), mapper.writeValueAsBytes(value));
+                    classKey(key),  value.getClass().getName().getBytes(UTF_8),
+                    objectKey(key), mapper.writeValueAsBytes(value));
+            if (expiry != null) {
+                jedis.expire(classKey(key), expiry);
+                jedis.expire(objectKey(key), expiry);
+            }
             return key;
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
@@ -56,9 +65,20 @@ public class JedisStore implements KeyValueStore {
     @Override
     public String delete(String key) {
         try(Jedis jedis = pool.getResource()) {
-            jedis.del((type + ":" + key + ":class").getBytes(UTF_8),
-                    key.getBytes(UTF_8));
+            jedis.del(classKey(key), objectKey(key));
             return key;
         }
+    }
+
+    private byte[] classKey(String keyFragment) {
+        return (type + ":" + keyFragment + ":class").getBytes(UTF_8);
+    }
+
+    private byte[] objectKey(String keyFragment) {
+        return (type + ":" + keyFragment + ":object").getBytes(UTF_8);
+    }
+
+    public void setExpiry(int expiry) {
+        this.expiry = expiry;
     }
 }
