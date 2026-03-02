@@ -5,6 +5,8 @@ import enkan.component.SystemComponent;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
+import java.io.Serializable;
+
 import static enkan.util.BeanBuilder.builder;
 
 public class JedisProvider extends SystemComponent<JedisProvider> {
@@ -20,10 +22,10 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
         return new ComponentLifecycle<JedisProvider>() {
             @Override
             public void start(JedisProvider c) {
-                if (poolConfig == null) {
-                    poolConfig = new JedisPoolConfig();
+                if (c.poolConfig == null) {
+                    c.poolConfig = new JedisPoolConfig();
                 }
-                c.pool = new JedisPool(poolConfig, host, port);
+                c.pool = new JedisPool(c.poolConfig, c.host, c.port);
             }
 
             @Override
@@ -31,16 +33,19 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
                 if (c.pool != null && !c.pool.isClosed()) {
                     c.pool.close();
                 }
+                c.pool = null;
             }
         };
     }
 
-    public JedisStore createStore(String type) {
-        return new JedisStore(type, pool);
+    public <T extends Serializable> JedisStore<T> createStore(String type, Class<T> clazz) {
+        if (pool == null) throw new IllegalStateException("JedisProvider is not started");
+        return new JedisStore<>(type, pool, clazz);
     }
 
-    public JedisStore createStore(String type, int expiry) {
-        return builder(new JedisStore(type, pool))
+    public <T extends Serializable> JedisStore<T> createStore(String type, Class<T> clazz, long expiry) {
+        if (pool == null) throw new IllegalStateException("JedisProvider is not started");
+        return builder(new JedisStore<>(type, pool, clazz))
                 .set(JedisStore::setExpiry, expiry)
                 .build();
     }
