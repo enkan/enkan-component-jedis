@@ -11,8 +11,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.ConnectionPoolConfig;
+import redis.clients.jedis.RedisClient;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import static enkan.util.BeanBuilder.builder;
@@ -48,7 +48,7 @@ public class JedisStoreTest {
 
         waitForRedis(ipAddress, 6379);
 
-        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        ConnectionPoolConfig poolConfig = new ConnectionPoolConfig();
         poolConfig.setJmxEnabled(true);
         system = EnkanSystem.of("jedis", builder(new JedisProvider())
                 .set(JedisProvider::setPoolConfig, poolConfig)
@@ -107,8 +107,8 @@ public class JedisStoreTest {
 
     private static void waitForRedis(String host, int port) throws InterruptedException {
         for (int i = 0; i < 20; i++) {
-            try (Jedis jedis = new Jedis(host, port)) {
-                jedis.ping();
+            try (RedisClient client = RedisClient.create(host, port)) {
+                client.ping();
                 return;
             } catch (JedisConnectionException e) {
                 Thread.sleep(500);

@@ -14,7 +14,7 @@ Stores session data in Redis via Jedis, serialized with MessagePack.
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>enkan-component-jedis</artifactId>
-    <version>0.11.0</version>
+    <version>0.12.0</version>
 </dependency>
 ```
 
