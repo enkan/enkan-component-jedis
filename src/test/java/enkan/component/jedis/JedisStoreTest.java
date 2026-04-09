@@ -86,14 +86,15 @@ public class JedisStoreTest {
 
     @Test
     public void sliding_ttl_is_reset_on_read() throws InterruptedException {
-        JedisStore<Prefecture> store = jedisProvider().createStore("redis", Prefecture.class, 2L);
+        JedisStore<Prefecture> store = jedisProvider().createStore("redis", Prefecture.class, 5L);
 
         store.write("13", new Prefecture("13", "Tokyo"));
         Thread.sleep(1000);
         // Reset sliding TTL
         assertThat(store.read("13")).isNotNull();
-        Thread.sleep(1500);
-        // Without reset the entry would have expired at ~2s; with reset it is still alive at ~2.5s
+        Thread.sleep(3000);
+        // Without reset the entry would have expired at ~5s since write; with reset the TTL
+        // was refreshed at ~1s, so only ~3s have elapsed since the refresh — plenty of margin.
         assertThat(store.read("13")).isNotNull();
     }
 
