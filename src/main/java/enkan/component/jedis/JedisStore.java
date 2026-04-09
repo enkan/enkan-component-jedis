@@ -1,6 +1,6 @@
 package enkan.component.jedis;
 
-import enkan.middleware.session.KeyValueStore;
+import enkan.web.middleware.session.KeyValueStore;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.params.GetExParams;
 import redis.clients.jedis.params.SetParams;
@@ -21,7 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <p>Redis keys follow the format {@code type:key} where {@code type} is the
  * prefix given at construction time.
  *
- * <p>When a non-negative expiry is configured, a sliding TTL is applied:
+ * <p>When a positive expiry is configured, a sliding TTL is applied:
  * every {@link #read} resets the TTL so that idle sessions expire while
  * active ones are kept alive.
  *
@@ -30,10 +30,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * @see JedisProvider#createStore(String, Class)
  */
 public class JedisStore<T extends Serializable> implements KeyValueStore {
+    /** Shared CBOR mapper. {@link ObjectMapper} instances are thread-safe after configuration. */
+    private static final ObjectMapper MAPPER = new CBORMapper();
+
     private final byte[] keyPrefix;
     private final UnifiedJedis jedis;
     private final Class<T> clazz;
-    private final ObjectMapper mapper;
     private long expiry = -1;
 
     /**
@@ -47,41 +49,40 @@ public class JedisStore<T extends Serializable> implements KeyValueStore {
         this.keyPrefix = (type + ":").getBytes(UTF_8);
         this.jedis = jedis;
         this.clazz = clazz;
-        this.mapper = new CBORMapper();
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>If a non-negative expiry is configured, the TTL is reset on every
+     * <p>If a positive expiry is configured, the TTL is reset on every
      * read using the Redis {@code GETEX} command (sliding expiration).
      *
-     * @throws tools.jackson.core.JacksonException if CBOR deserialization fails
+     * @throws tools.jackson.core.JacksonException (unchecked) if CBOR deserialization fails
      */
     @Override
     public T read(String key) {
         byte[] k = objectKey(key);
         byte[] data;
-        if (expiry >= 0) {
+        if (expiry > 0) {
             data = jedis.getEx(k, GetExParams.getExParams().ex(expiry));
         } else {
             data = jedis.get(k);
         }
         if (data == null) return null;
 
-        return mapper.readValue(data, clazz);
+        return MAPPER.readValue(data, clazz);
     }
 
     /**
      * {@inheritDoc}
      *
      * <p>The value must be an instance of the class specified at construction
-     * time. If a non-negative expiry is configured, the key is written with
+     * time. If a positive expiry is configured, the key is written with
      * {@code SET} with {@code EX} option so that the SET and TTL are applied
      * atomically.
      *
      * @throws IllegalArgumentException            if {@code value} is not an instance of {@code T}
-     * @throws tools.jackson.core.JacksonException  if CBOR serialization fails
+     * @throws tools.jackson.core.JacksonException (unchecked) if CBOR serialization fails
      */
     @Override
     public String write(String key, Serializable value) {
@@ -90,8 +91,8 @@ public class JedisStore<T extends Serializable> implements KeyValueStore {
                     "Expected " + clazz.getName() + " but got " + value.getClass().getName());
         }
         byte[] k = objectKey(key);
-        byte[] data = mapper.writeValueAsBytes(value);
-        if (expiry >= 0) {
+        byte[] data = MAPPER.writeValueAsBytes(value);
+        if (expiry > 0) {
             jedis.set(k, data, SetParams.setParams().ex(expiry));
         } else {
             jedis.set(k, data);
@@ -117,10 +118,11 @@ public class JedisStore<T extends Serializable> implements KeyValueStore {
     /**
      * Sets the TTL in seconds applied to keys on read and write.
      *
-     * <p>A value of {@code -1} (the default) disables expiration.
-     * A value of {@code 0} or greater enables sliding TTL.
+     * <p>A value of {@code 0} or less (the default is {@code -1}) disables expiration.
+     * A positive value enables sliding TTL. Redis rejects {@code EX 0},
+     * so {@code 0} is treated the same as "no TTL" rather than forwarded.
      *
-     * @param expiry the TTL in seconds, or {@code -1} to disable
+     * @param expiry the TTL in seconds, or any non-positive value to disable
      */
     public void setExpiry(long expiry) {
         this.expiry = expiry;

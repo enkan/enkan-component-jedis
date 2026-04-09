@@ -21,7 +21,7 @@ import static enkan.util.BeanBuilder.builder;
  * @author kawasima
  */
 public class JedisProvider extends SystemComponent<JedisProvider> {
-    private RedisClient jedis;
+    private RedisClient client;
 
     private String host = "localhost";
     private int port = 6379;
@@ -38,15 +38,15 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
                 if (c.poolConfig != null) {
                     builder.poolConfig(c.poolConfig);
                 }
-                c.jedis = builder.build();
+                c.client = builder.build();
             }
 
             @Override
             public void stop(JedisProvider c) {
-                if (c.jedis != null) {
-                    c.jedis.close();
+                if (c.client != null) {
+                    c.client.close();
                 }
-                c.jedis = null;
+                c.client = null;
             }
         };
     }
@@ -61,8 +61,8 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
      * @throws IllegalStateException if this component has not been started
      */
     public <T extends Serializable> JedisStore<T> createStore(String type, Class<T> clazz) {
-        if (jedis == null) throw new IllegalStateException("JedisProvider is not started");
-        return new JedisStore<>(type, jedis, clazz);
+        if (client == null) throw new IllegalStateException("JedisProvider is not started");
+        return new JedisStore<>(type, client, clazz);
     }
 
     /**
@@ -76,8 +76,8 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
      * @throws IllegalStateException if this component has not been started
      */
     public <T extends Serializable> JedisStore<T> createStore(String type, Class<T> clazz, long expiry) {
-        if (jedis == null) throw new IllegalStateException("JedisProvider is not started");
-        return builder(new JedisStore<>(type, jedis, clazz))
+        if (client == null) throw new IllegalStateException("JedisProvider is not started");
+        return builder(new JedisStore<>(type, client, clazz))
                 .set(JedisStore::setExpiry, expiry)
                 .build();
     }
@@ -101,8 +101,8 @@ public class JedisProvider extends SystemComponent<JedisProvider> {
     }
 
     /**
-     * Sets a custom pool configuration. If not set, a default
-     * {@link ConnectionPoolConfig} is used.
+     * Sets a custom pool configuration. If not set, the Jedis builder's
+     * default pool configuration is used.
      *
      * @param poolConfig the pool configuration
      */
