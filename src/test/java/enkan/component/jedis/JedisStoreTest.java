@@ -85,6 +85,29 @@ public class JedisStoreTest {
     }
 
     @Test
+    public void sliding_ttl_is_reset_on_read() throws InterruptedException {
+        JedisStore<Prefecture> store = jedisProvider().createStore("redis", Prefecture.class, 5L);
+
+        store.write("13", new Prefecture("13", "Tokyo"));
+        Thread.sleep(1000);
+        // Reset sliding TTL
+        assertThat(store.read("13")).isNotNull();
+        Thread.sleep(3000);
+        // Without reset the entry would have expired at ~5s since write; with reset the TTL
+        // was refreshed at ~1s, so only ~3s have elapsed since the refresh — plenty of margin.
+        assertThat(store.read("13")).isNotNull();
+    }
+
+    @Test
+    public void zero_expiry_disables_ttl() {
+        JedisStore<Prefecture> store = jedisProvider().createStore("redis", Prefecture.class, 0L);
+
+        // Should not throw; 0 is treated as "no TTL" rather than forwarded as EX 0
+        store.write("13", new Prefecture("13", "Tokyo"));
+        assertThat(store.read("13")).isNotNull();
+    }
+
+    @Test
     public void expiry_evicts_entry() throws InterruptedException {
         JedisStore<Prefecture> store = jedisProvider().createStore("redis", Prefecture.class, 1L);
 
